@@ -96,7 +96,7 @@ public class Synthesize extends RelativeLayout {
     protected void setBitmap(Bitmap bitmap){
         this.bitmap = bitmap;
     }
-    public void saveLayoutBitmap(){
+    public void saveImage(){
         layout(0, 0, getMeasuredWidth(), getMeasuredHeight());
         if(bitmap==null) {
             this.buildDrawingCache();
