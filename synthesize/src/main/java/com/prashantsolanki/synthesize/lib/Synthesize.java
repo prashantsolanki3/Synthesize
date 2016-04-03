@@ -28,8 +28,6 @@ public class Synthesize extends RelativeLayout {
     File outputPath;
     String fileName;
     OnSaveListener onSaveListener =null;
-    //TODO: setLayoutTypes
-    //TODO: Make Webview
     public Synthesize(Context context) {
         super(context);
         outputPath = Environment.getExternalStorageDirectory();
