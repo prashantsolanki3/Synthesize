@@ -4,9 +4,11 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.support.annotation.IntRange;
 import android.support.annotation.LayoutRes;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -25,7 +27,7 @@ public class Synthesize extends RelativeLayout {
     int outputQuality = 100;
     File outputPath;
     String fileName;
-    OnSaveListener listener=null;
+    OnSaveListener onSaveListener =null;
     //TODO: setLayoutTypes
     //TODO: Make Webview
     public Synthesize(Context context) {
@@ -82,7 +84,7 @@ public class Synthesize extends RelativeLayout {
     }
 
     public void addOnSaveListener(OnSaveListener listener){
-        this.listener = listener;
+        this.onSaveListener = listener;
     }
 
     public String getFileName() {
@@ -96,49 +98,92 @@ public class Synthesize extends RelativeLayout {
     protected void setBitmap(Bitmap bitmap){
         this.bitmap = bitmap;
     }
-    public void saveImage(){
+
+    @Nullable
+    protected Bitmap getBitmap(){
+        return bitmap;
+    }
+
+    public void generateBitmap(OnBitmapGenerationListener onBitmapGenerationListener){
         layout(0, 0, getMeasuredWidth(), getMeasuredHeight());
         if(bitmap==null) {
             this.buildDrawingCache();
             bitmap = this.getDrawingCache();
         }
-        FileOutputStream out = null;
-        String postFix = ".png";
-        if(compressionFormat== Bitmap.CompressFormat.JPEG)
-            postFix = ".jpg";
-        else if(compressionFormat == Bitmap.CompressFormat.PNG)
-            postFix = ".png";
-        else if(Build.VERSION.SDK_INT >=19 && compressionFormat == Bitmap.CompressFormat.WEBP)
-            postFix = ".webp";
-
-        if(!outputPath.exists())
-            if(outputPath.mkdirs())
-                Log.e("Synthesize","Unable to make directories");
-        if(fileName==null)
-            fileName = String.valueOf(SystemClock.elapsedRealtime()).concat(postFix);
-        try {
-            out = new FileOutputStream(new File(outputPath,fileName));
-            bitmap.compress(compressionFormat, 100, out); // bmp is your Bitmap instance
-        } catch (Exception e) {
-            e.printStackTrace();
-            if(listener!=null)
-            listener.onError(e);
-        } finally {
-            destroyDrawingCache();
-            if(listener!=null)
-            listener.onSuccess(outputPath);
-            try {
-                if (out != null) {
-                    out.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        if(bitmap!=null)
+            onBitmapGenerationListener.onSuccess(bitmap);
+        else
+            onBitmapGenerationListener.onError(new RuntimeException("Unable to generate Bitmap"));
     }
 
+    public void saveImage(){
+        generateBitmap(generationListener);
+    }
+
+    public void saveImage(OnSaveListener listener){
+        this.onSaveListener = listener;
+        generateBitmap(generationListener);
+    }
+
+    private OnBitmapGenerationListener generationListener = new OnBitmapGenerationListener() {
+        @Override
+        public void onSuccess(final Bitmap bitmap) {
+            new Handler().post(new Runnable() {
+                @Override
+                public void run() {
+                    FileOutputStream out = null;
+                    String postFix = ".png";
+                    if(compressionFormat== Bitmap.CompressFormat.JPEG)
+                        postFix = ".jpg";
+                    else if(compressionFormat == Bitmap.CompressFormat.PNG)
+                        postFix = ".png";
+                    else if(Build.VERSION.SDK_INT >=19 && compressionFormat == Bitmap.CompressFormat.WEBP)
+                        postFix = ".webp";
+
+                    if(!outputPath.exists())
+                        if(outputPath.mkdirs())
+                            Log.e("Synthesize","Unable to make directories");
+                    final File filePath = new File(outputPath,fileName);
+                    if(fileName==null)
+                        fileName = String.valueOf(SystemClock.elapsedRealtime()).concat(postFix);
+                    try {
+
+                        out = new FileOutputStream(filePath);
+                        bitmap.compress(compressionFormat, 100, out); // bmp is your Bitmap instance
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        if(onSaveListener !=null)
+                            onSaveListener.onError(e);
+                    } finally {
+                        destroyDrawingCache();
+                        if(onSaveListener !=null)
+                            onSaveListener.onSuccess(bitmap,filePath);
+                        try {
+                            if (out != null) {
+                                out.close();
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            });
+
+        }
+
+        @Override
+        public void onError(Exception e) {
+            e.printStackTrace();
+        }
+    };
+
     public interface OnSaveListener{
-        void onSuccess(File file);
+        void onSuccess(Bitmap bitmap,File file);
+        void onError(Exception e);
+    }
+
+    public interface OnBitmapGenerationListener{
+        void onSuccess(Bitmap bitmap);
         void onError(Exception e);
     }
 }
