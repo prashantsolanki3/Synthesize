@@ -141,9 +141,10 @@ public class Synthesize extends RelativeLayout {
                     if(!outputPath.exists())
                         if(outputPath.mkdirs())
                             Log.e("Synthesize","Unable to make directories");
-                    final File filePath = new File(outputPath,fileName);
+
                     if(fileName==null)
                         fileName = String.valueOf(SystemClock.elapsedRealtime()).concat(postFix);
+                    final File filePath = new File(outputPath,fileName);
                     try {
 
                         out = new FileOutputStream(filePath);
